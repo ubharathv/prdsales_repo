@@ -1,0 +1,277 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Roles for PrdSales Data Pipeline
+
+#################################################
+# Parameters
+#################################################
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name (dev, test, prod)
+  
+  ProjectName:
+    Type: String
+    Default: prdsales
+    Description: Project name prefix
+
+#################################################
+# Resources
+#################################################
+
+Resources:
+
+  #################################################
+  # Lambda Execution Role
+  #################################################
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Environment}-${ProjectName}-lambda-role
+      
+      # Trust Policy (Who can assume this role)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      # AWS Managed Lambda Policy
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+      # Custom Policies for Lambda
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-src-bucket"
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-src-bucket/*"
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-out-bucket"
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-out-bucket/*"
+        
+        - PolicyName: DynamoDBAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_file_evnt"
+        
+        - PolicyName: StepFunctionsAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                  - states:DescribeExecution
+                  - states:StopExecution
+                Resource:
+                  - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:StepFun_${ProjectName}_process_file"
+        
+        - PolicyName: LambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:get_${ProjectName}_file_lambda"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:gen_search_revenue_lambda"
+
+  #################################################
+  # Glue Execution Role
+  #################################################
+
+  GlueExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Environment}-${ProjectName}-glue-role
+
+      # Trust Policy (Who can assume this role)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+
+      # AWS Managed Glue Policy
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+
+      # Custom Policies for Glue
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-src-bucket"
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-src-bucket/*"
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-out-bucket"
+                  - !Sub "arn:aws:s3:::${ProjectName}-s3-out-bucket/*"
+        
+        - PolicyName: LambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:get_${ProjectName}_file_lambda"
+
+  #################################################
+  # Step Functions Execution Role
+  #################################################
+
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Environment}-${ProjectName}-stepfunctions-role
+      
+      # Trust Policy (Who can assume this role)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+
+      # Custom Policies for Step Functions
+      Policies:
+        - PolicyName: LambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:get_${ProjectName}_file_lambda"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:gen_search_revenue_lambda"
+        
+        - PolicyName: GlueJobPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                  - glue:GetJobRun
+                  - glue:BatchStopJobRun
+                Resource:
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${ProjectName}_gen_search_rev_glue"
+
+  #################################################
+  # S3 Event Notification Role (for Lambda triggers)
+  #################################################
+
+  S3EventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Environment}-${ProjectName}-s3-event-role
+      
+      # Trust Policy (Who can assume this role)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sts:AssumeRole
+
+      # Custom Policies for S3 Events
+      Policies:
+        - PolicyName: LambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:get_${ProjectName}_file_lambda"
+
+#################################################
+# Outputs
+#################################################
+
+Outputs:
+
+  LambdaRoleName:
+    Description: Lambda Execution Role Name
+    Value: !Ref LambdaExecutionRole
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-lambda-role-name
+
+  LambdaRoleArn:
+    Description: Lambda Execution Role ARN
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-lambda-role-arn
+
+  GlueRoleName:
+    Description: Glue Execution Role Name
+    Value: !Ref GlueExecutionRole
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-glue-role-name
+
+  GlueRoleArn:
+    Description: Glue Execution Role ARN
+    Value: !GetAtt GlueExecutionRole.Arn
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-glue-role-arn
+
+  StepFunctionsRoleName:
+    Description: Step Functions Execution Role Name
+    Value: !Ref StepFunctionsExecutionRole
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-stepfunctions-role-name
+
+  StepFunctionsRoleArn:
+    Description: Step Functions Execution Role ARN
+    Value: !GetAtt StepFunctionsExecutionRole.Arn
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-stepfunctions-role-arn
+
+  S3EventRoleName:
+    Description: S3 Event Role Name
+    Value: !Ref S3EventRole
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-s3-event-role-name
+
+  S3EventRoleArn:
+    Description: S3 Event Role ARN
+    Value: !GetAtt S3EventRole.Arn
+    Export:
+      Name: !Sub ${Environment}-${ProjectName}-s3-event-role-arn
