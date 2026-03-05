@@ -199,6 +199,7 @@ Resources:
                   - glue:BatchStopJobRun
                 Resource:
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${ProjectName}_gen_search_rev_glue"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${Environment}_${ProjectName}_gen_search_rev_glue"
 
   #################################################
   # S3 Event Notification Role (for Lambda triggers)
