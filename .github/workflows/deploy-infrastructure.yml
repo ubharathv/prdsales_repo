@@ -4,11 +4,17 @@ on:
   push:
     branches: [ main ]
     paths: 
-      - 'infrastructure/**'
+      - 'git_repo/prdsales_repo/infrastructure/**'
+      - 'git_repo/prdsales_repo/lambda/**'
+      - 'git_repo/prdsales_repo/glue/**'
+      - 'git_repo/prdsales_repo/stepfunction/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'infrastructure/**'
+      - 'git_repo/prdsales_repo/infrastructure/**'
+      - 'git_repo/prdsales_repo/lambda/**'
+      - 'git_repo/prdsales_repo/glue/**'
+      - 'git_repo/prdsales_repo/stepfunction/**'
 
 env:
   AWS_REGION: us-east-2
@@ -30,30 +36,152 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Validate CloudFormation template
-      run: |
-        aws cloudformation validate-template \
-          --template-body file://infrastructure/iam-roles.yaml
-
-    - name: Deploy CloudFormation stack
+    - name: Deploy IAM Roles
       run: |
         aws cloudformation deploy \
-          --template-file infrastructure/iam-roles.yaml \
+          --template-file git_repo/prdsales_repo/infrastructure/iam-roles.yaml \
           --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
           --parameter-overrides \
             Environment=${{ env.ENVIRONMENT }} \
             ProjectName=${{ env.PROJECT_NAME }} \
           --capabilities CAPABILITY_NAMED_IAM \
           --region ${{ env.AWS_REGION }} \
-          --tags \
-            Environment=${{ env.ENVIRONMENT }} \
-            Project=${{ env.PROJECT_NAME }} \
-            DeployedBy=GitHubActions
+          --tags Environment=${{ env.ENVIRONMENT }} Project=${{ env.PROJECT_NAME }}
 
-    - name: Get stack outputs
+    - name: Deploy Lambda Functions
       run: |
-        aws cloudformation describe-stacks \
+        # Get Lambda role ARN
+        LAMBDA_ROLE_ARN=$(aws cloudformation describe-stacks \
           --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`LambdaRoleArn`].OutputValue' \
+          --output text)
+        
+        echo "Using Lambda Role ARN: $LAMBDA_ROLE_ARN"
+        
+        # Package and deploy dev_get_prdsales_file_lambda
+        cd git_repo/prdsales_repo/lambda
+        zip -r ../../../dev_get_prdsales_file_lambda.zip dev_get_prdsales_file_lambda.py
+        zip -r ../../../dev_gen_search_revenue_lambda.zip dev_gen_search_revenue_lambda.py
+        cd ../../..
+        
+        # Deploy dev_get_prdsales_file_lambda
+        aws lambda create-function \
+          --function-name dev_get_prdsales_file_lambda \
+          --runtime python3.9 \
+          --role $LAMBDA_ROLE_ARN \
+          --handler dev_get_prdsales_file_lambda.lambda_handler \
+          --zip-file fileb://dev_get_prdsales_file_lambda.zip \
+          --timeout 300 \
           --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs' \
-          --output table
+          --tags Environment=${{ env.ENVIRONMENT }},Project=${{ env.PROJECT_NAME }} \
+          || aws lambda update-function-code \
+             --function-name dev_get_prdsales_file_lambda \
+             --zip-file fileb://dev_get_prdsales_file_lambda.zip \
+             --region ${{ env.AWS_REGION }}
+        
+        # Deploy dev_gen_search_revenue_lambda
+        aws lambda create-function \
+          --function-name dev_gen_search_revenue_lambda \
+          --runtime python3.9 \
+          --role $LAMBDA_ROLE_ARN \
+          --handler dev_gen_search_revenue_lambda.lambda_handler \
+          --zip-file fileb://dev_gen_search_revenue_lambda.zip \
+          --timeout 300 \
+          --region ${{ env.AWS_REGION }} \
+          --tags Environment=${{ env.ENVIRONMENT }},Project=${{ env.PROJECT_NAME }} \
+          || aws lambda update-function-code \
+             --function-name dev_gen_search_revenue_lambda \
+             --zip-file fileb://dev_gen_search_revenue_lambda.zip \
+             --region ${{ env.AWS_REGION }}
+
+    - name: Deploy Glue Job
+      run: |
+        # Get Glue role ARN
+        GLUE_ROLE_ARN=$(aws cloudformation describe-stacks \
+          --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`GlueRoleArn`].OutputValue' \
+          --output text)
+        
+        echo "Using Glue Role ARN: $GLUE_ROLE_ARN"
+        
+        # Upload Glue script to existing S3 bucket
+        aws s3 cp git_repo/prdsales_repo/glue/dev_prdsales_gen_search_rev_glue.py \
+          s3://${{ env.PROJECT_NAME }}-glue-scripts/scripts/ \
+          --region ${{ env.AWS_REGION }}
+        
+        # Create or update Glue job with dev_ prefix
+        aws glue create-job \
+          --name dev_prdsales_gen_search_rev_glue \
+          --role $GLUE_ROLE_ARN \
+          --command '{"Name":"glueetl","ScriptLocation":"s3://'${{ env.PROJECT_NAME }}'-glue-scripts/scripts/dev_prdsales_gen_search_rev_glue.py","PythonVersion":"3"}' \
+          --default-arguments '{"--job-language":"python"}' \
+          --max-capacity 3 \
+          --region ${{ env.AWS_REGION }} \
+          --tags Environment=${{ env.ENVIRONMENT }},Project=${{ env.PROJECT_NAME }} \
+          || aws glue update-job \
+             --job-name dev_prdsales_gen_search_rev_glue \
+             --job-update '{"Role":"'$GLUE_ROLE_ARN'","Command":{"Name":"glueetl","ScriptLocation":"s3://'${{ env.PROJECT_NAME }}'-glue-scripts/scripts/dev_prdsales_gen_search_rev_glue.py","PythonVersion":"3"},"MaxCapacity":3}' \
+             --region ${{ env.AWS_REGION }}
+
+    - name: Deploy Step Function
+      run: |
+        # Get Step Functions role ARN
+        SF_ROLE_ARN=$(aws cloudformation describe-stacks \
+          --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`StepFunctionsRoleArn`].OutputValue' \
+          --output text)
+        
+        # Get current account ID
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        
+        echo "Using Step Functions Role ARN: $SF_ROLE_ARN"
+        echo "Using Account ID: $ACCOUNT_ID"
+        
+        # Create a temporary copy of the Step Function definition with updated ARNs
+        cp git_repo/prdsales_repo/stepfunction/dev_StepFun_prdsales_process_file.json temp_stepfunction.json
+        
+        # Replace hardcoded account ID and region with current values
+        sed -i "s/707859598422/$ACCOUNT_ID/g" temp_stepfunction.json
+        sed -i "s/us-east-2/${{ env.AWS_REGION }}/g" temp_stepfunction.json
+        
+        # Also replace any hardcoded Lambda function ARNs with dynamic ones
+        sed -i "s|arn:aws:lambda:[^:]*:[^:]*:function:dev_get_prdsales_file_lambda|arn:aws:lambda:${{ env.AWS_REGION }}:$ACCOUNT_ID:function:dev_get_prdsales_file_lambda|g" temp_stepfunction.json
+        sed -i "s|arn:aws:lambda:[^:]*:[^:]*:function:dev_gen_search_revenue_lambda|arn:aws:lambda:${{ env.AWS_REGION }}:$ACCOUNT_ID:function:dev_gen_search_revenue_lambda|g" temp_stepfunction.json
+        
+        echo "Updated Step Function definition with current account ARNs"
+        
+        # Create or update Step Function with dev_ prefix
+        aws stepfunctions create-state-machine \
+          --name dev_StepFun_prdsales_process_file \
+          --definition file://temp_stepfunction.json \
+          --role-arn $SF_ROLE_ARN \
+          --region ${{ env.AWS_REGION }} \
+          --tags Key=Environment,Value=${{ env.ENVIRONMENT }} Key=Project,Value=${{ env.PROJECT_NAME }} \
+          || aws stepfunctions update-state-machine \
+             --state-machine-arn arn:aws:states:${{ env.AWS_REGION }}:$ACCOUNT_ID:stateMachine:dev_StepFun_prdsales_process_file \
+             --definition file://temp_stepfunction.json \
+             --role-arn $SF_ROLE_ARN \
+             --region ${{ env.AWS_REGION }}
+        
+        # Clean up temporary file
+        rm temp_stepfunction.json
+
+    - name: Deployment Summary
+      run: |
+        echo "🎉 DEPLOYMENT COMPLETE!"
+        echo "================================"
+        echo "✅ IAM Roles: Deployed"
+        echo "✅ Lambda Functions: Deployed"
+        echo "✅ Glue Jobs: Deployed"
+        echo "✅ Step Functions: Deployed"
+        echo ""
+        echo "📋 Deployed Resources:"
+        echo "- Lambda: dev_get_prdsales_file_lambda"
+        echo "- Lambda: dev_gen_search_revenue_lambda"
+        echo "- Glue Job: dev_prdsales_gen_search_rev_glue"
+        echo "- Step Function: dev_StepFun_prdsales_process_file"
+        echo ""
+        echo "🔧 Manual Setup Required:"
+        echo "- S3 Buckets (prdsales-s3-src-bucket, prdsales-s3-out-bucket)"
+        echo "- DynamoDB Table (prdssales_file_evnt)"
+        echo "- S3 Event Notifications"
