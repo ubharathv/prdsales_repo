@@ -56,8 +56,7 @@ def lambda_handler(event, context):
     """
     
     try:
-        #print(f"Lambda invoked with event: {json.dumps(event, indent=2)}")
-        print("Lambda invoked with S3 file event:")
+        print("Lambda invoked with S3 file event")
         
         # Check if this is an S3 event or direct invocation
         if 'Records' in event and len(event['Records']) > 0 and 's3' in event['Records'][0]:
@@ -85,8 +84,8 @@ def handle_s3_event(event, context):
     """
     Handle S3 event-triggered invocation
     Determines processing type based on file size:
-    - Files < 5GB: Use Lambda processing (event_type='LAMBDA')
-    - Files >= 5GB: Use Glue processing (event_type='GLUE')
+    - Files < 2GB: Use Lambda processing (event_type='LAMBDA')
+    - Files >= 2GB: Use Glue processing (event_type='GLUE')
     """
     try:
         # Get the object from the event
@@ -116,7 +115,6 @@ def handle_s3_event(event, context):
         print(f"File Size: {file_size} bytes ({file_size_gb:.2f} GB)")
         
         # Determine processing type based on file size
-        # 2GB = 2 * 1024 * 1024 * 1024 = 2,147,483,648 bytes
         size_threshold_bytes = 2 * 1024 * 1024 * 1024  # 2GB in bytes
         
         if file_size < size_threshold_bytes:
@@ -169,7 +167,7 @@ def handle_s3_event(event, context):
                     error_message=str(e)
                 )
         except:
-            pass  # Don't fail if DynamoDB write fails
+            pass  #For now not failing if Dynamo DB entry is not done
         
         raise e
 

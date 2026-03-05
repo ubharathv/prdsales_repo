@@ -175,9 +175,9 @@ class SearchRevenueAnalyzer:
             print(f"Error reading S3 file: {e}")
             raise
     
-    def process_data_streaming(self, rows: List[Dict]) -> List[Dict]:
+    def process_data(self, rows: List[Dict]) -> List[Dict]:
         """
-        Process data with memory-efficient streaming approach.
+        Read the file data for finding out search keywords
         
         Args:
             rows: List of data rows to process
@@ -283,7 +283,7 @@ class SearchRevenueAnalyzer:
                 
                 tsv_content = output.getvalue()
                 print('TSV content length:', len(tsv_content))
-                print('TSV content preview:', tsv_content[:500])  # First 500 chars
+                #print('TSV content preview:', tsv_content[:500])  # First 500 chars
             
             print('Uploading to S3...')
             
@@ -424,7 +424,7 @@ class SearchRevenueAnalyzer:
                 'file_key': file_key,
                 'bucket': self.input_bucket,
                 'content_type': 'text/csv',
-                'event_type': 'LAMBDA',
+                'event_type': 'Lambda',
                 'file_datetime': datetime.utcnow().isoformat() + 'Z',
                 'file_size_gb': '',  # Leave empty as requested
                 'file_status': status
@@ -456,7 +456,7 @@ class SearchRevenueAnalyzer:
         """
         try:
             print("Starting Lambda Search Revenue Analysis (Class-based)")
-            print("=" * 60)
+            print("=====================================================")
             print(f"Processing file: {file_key}")
             print(f"Lambda timeout: {context.get_remaining_time_in_millis()} ms")
             
@@ -486,7 +486,7 @@ class SearchRevenueAnalyzer:
             
             # Process data
             print(f"Time remaining before processing: {context.get_remaining_time_in_millis()} ms")
-            results = self.process_data_streaming(rows)
+            results = self.process_data(rows)
             print(f'Processing complete. Results count: {len(results)}')
             
             # Save results to S3

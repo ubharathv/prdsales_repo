@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
 ================================================================================
+Script Name: {env}_dev_prdsales_gen_search_rev_glue
+
 PrdSales Data Pipeline - Glue Job for Search Revenue Analysis
 ================================================================================
 
-Description:
-    AWS Glue PySpark job that processes large product sales files (>= 2GB) and
+Process Overview: 
+    Job that processes large sales files (>= 2GB) and
     generates search keyword performance analytics. Reads CSV files from S3,
     performs data transformations, and outputs tab-delimited results.
 
-First Created: 2026-03-05
-Author: Data Engineering Team
-Environment: Development
+Created By : DE Team
 
-Change Log:
-    2026-03-05 - Initial creation with PySpark data processing logic
-    [Add future changes here]
+Modification History:
+    ID  Change Date Developer   JIRA/Request    Change Reason
+    01  2026-03-05  Bharath U   JIRA-1234       Initial Version
 
 Dependencies:
     - AWS Glue runtime environment
@@ -30,7 +30,6 @@ Usage:
 
 ================================================================================
 """
-
 import sys
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
@@ -351,7 +350,7 @@ class SearchRevenueProcessor:
         ).filter(
             col("Search Keyword").isNotNull() & 
             col("Search Engine Domain").isNotNull()
-        )
+        ).orderBy(col("Revenue").desc())
         
         return final_results
     
@@ -479,7 +478,7 @@ class SearchRevenueProcessor:
                 'file_key': file_key,
                 'bucket': 'prdsales-s3-src-bucket',
                 'content_type': 'text/csv',
-                'event_type': 'GLUE',
+                'event_type': 'Glue',
                 'file_datetime': datetime.utcnow().isoformat() + 'Z',
                 'file_size_gb': '',
                 'file_status': status
@@ -553,7 +552,7 @@ class SearchRevenueProcessor:
             bool: True if processing successful, False otherwise
         """
         try:
-            print("AWS Glue PySpark Search Revenue Analyzer (Class-based)")
+            print("AWS Glue PySpark Search Revenue Analyzer")
             print("=" * 60)
             print(f"Processing file: {file_key}")
             
@@ -576,7 +575,7 @@ class SearchRevenueProcessor:
             print(f"Input path: {input_path}")
             print(f"Output path: s3://{output_bucket}/{output_key}")
             
-            # Process data using class methods
+            # Process data
             df = self.load_data(input_path)
             df_enriched = self.enrich_data(df)
             search_sessions = self.find_search_sessions(df_enriched)
@@ -616,16 +615,10 @@ def main():
     job = Job(glue_context)
     
     try:
-        # Get job parameters
-        try:
-            args = getResolvedOptions(sys.argv, ['file_key'])
-            file_key = args['file_key']
-            print(f"Received file_key parameter: {file_key}")
-        except Exception as e:
-            print(f"Error getting job parameters: {e}")
-            # Fallback for testing
-            file_key = "prdsales/web/PrdSalesRevenue.csv"
-            print(f"Using fallback file_key: {file_key}")
+        # Get job parameters - file_key is required
+        args = getResolvedOptions(sys.argv, ['file_key'])
+        file_key = args['file_key']
+        print(f"Received file_key parameter: {file_key}")
         
         # Create processor instance and run
         processor = SearchRevenueProcessor(spark, glue_context)
@@ -638,8 +631,12 @@ def main():
             
     except Exception as e:
         print(f"Error in main: {e}")
+        if "file_key" in str(e) or "getResolvedOptions" in str(e):
+            print("CRITICAL ERROR: Required parameter 'file_key' not provided")
+            print("Job cannot proceed without file_key parameter")
         import traceback
         traceback.print_exc()
+        return False
     
     finally:
         # job.commit()  # Uncomment when using as actual Glue job
