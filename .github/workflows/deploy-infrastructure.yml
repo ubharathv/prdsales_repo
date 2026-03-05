@@ -1,0 +1,59 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [ dev ]
+    paths: 
+      - 'infrastructure/**'
+  pull_request:
+    branches: [ dev ]
+    paths:
+      - 'infrastructure/**'
+
+env:
+  AWS_REGION: us-east-2
+  ENVIRONMENT: dev
+  PROJECT_NAME: prdsales
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Validate CloudFormation template
+      run: |
+        aws cloudformation validate-template \
+          --template-body file://infrastructure/iam-roles.yaml
+
+    - name: Deploy CloudFormation stack
+      run: |
+        aws cloudformation deploy \
+          --template-file infrastructure/iam-roles.yaml \
+          --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
+          --parameter-overrides \
+            Environment=${{ env.ENVIRONMENT }} \
+            ProjectName=${{ env.PROJECT_NAME }} \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region ${{ env.AWS_REGION }} \
+          --tags \
+            Environment=${{ env.ENVIRONMENT }} \
+            Project=${{ env.PROJECT_NAME }} \
+            DeployedBy=GitHubActions
+
+    - name: Get stack outputs
+      run: |
+        aws cloudformation describe-stacks \
+          --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs' \
+          --output table
