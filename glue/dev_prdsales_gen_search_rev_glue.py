@@ -615,19 +615,39 @@ def main():
     job = Job(glue_context)
     
     try:
+        print("=== GLUE JOB PARAMETER EXTRACTION ===")
+        print(f"Command line arguments: {sys.argv}")
+        
         # Get job parameters - file_key is required
-        args = getResolvedOptions(sys.argv, ['file_key'])
-        file_key = args['file_key']
-        print(f"Received file_key parameter: {file_key}")
+        try:
+            args = getResolvedOptions(sys.argv, ['file_key'])
+            file_key = args['file_key']
+            print(f"Successfully received file_key parameter: {file_key}")
+                
+        except Exception as param_error:
+            print(f"=== PARAMETER EXTRACTION ERROR ===")
+            print(f"Error getting job parameters: {param_error}")
+            print(f"Error type: {type(param_error).__name__}")
+            print(f"Available sys.argv: {sys.argv}")
+            print("CRITICAL ERROR: Required parameter 'file_key' not provided")
+            print("Job cannot proceed without file_key parameter")
+            print("Expected format: --file_key 'prdsales/web/PrdSalesRevenue.csv'")
+            
+            import traceback
+            traceback.print_exc()
+            raise param_error
+        
+        print("=== STARTING GLUE JOB PROCESSING ===")
         
         # Create processor instance and run
         processor = SearchRevenueProcessor(spark, glue_context)
         success = processor.process_file(file_key)
         
         if success:
-            print("Processing completed successfully!")
+            print("=== GLUE JOB COMPLETED SUCCESSFULLY ===")
         else:
-            print("Processing failed!")
+            print("=== GLUE JOB PROCESSING FAILED ===")
+            raise Exception("Glue job processing returned failure status")
             
     except Exception as e:
         print(f"Error in main: {e}")
