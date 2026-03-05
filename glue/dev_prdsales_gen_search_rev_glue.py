@@ -26,7 +26,7 @@ Dependencies:
 Usage:
     - Handles large files (multi-GB) with automatic Spark scaling
     - Input: CSV files from S3 source bucket
-    - Output: Tab-delimited files to S3 output bucket
+    - Output: Tab-delimited files to S3 output bucket.
 
 ================================================================================
 """
