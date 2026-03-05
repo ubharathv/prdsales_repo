@@ -170,7 +170,7 @@ jobs:
             --definition file://temp_stepfunction.json \
             --role-arn $SF_ROLE_ARN \
             --region ${{ env.AWS_REGION }} \
-            --tags Key=Environment,Value=${{ env.ENVIRONMENT }} Key=Project,Value=${{ env.PROJECT_NAME }}
+            --tags key=Environment,value=${{ env.ENVIRONMENT }} key=Project,value=${{ env.PROJECT_NAME }}
           echo "Step Function created successfully"
         fi
         
