@@ -1,5 +1,5 @@
 {
-  "Comment": "A description of my state machine",
+  "Comment": "PrdSales file processing orchestrator - routes based on file size",
   "StartAt": "check_trigger_type",
   "States": {
     "check_trigger_type": {

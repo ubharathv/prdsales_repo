@@ -1,3 +1,28 @@
+"""
+================================================================================
+Script Name: {env}_get_prdsales_file_lambda
+================================================================================
+
+Process Overview:
+    PrdSales Data Pipeline - File Processing Lambda Function 
+    that handles S3 file events and determines processing type
+    based on file size. Routes files < 2GB to Lambda processing and files >= 2GB
+    to Glue job processing. Records all file events in DynamoDB for tracking.
+
+Created By : DE Team
+
+Modification History:
+    ID  Change Date Developer   JIRA/Request    Change Reason
+    01  2026-03-05  Bharath U   JIRA-1234       Initial Version
+
+Notes/Dependencies:
+    - boto3 (AWS SDK)
+    - DynamoDB table: prdssales_file_evnt
+    - Step Function: {env}_StepFun_prdsales_process_file
+    - IAM permissions for S3, DynamoDB, and Step Functions
+================================================================================
+"""
+
 import json
 import urllib.parse
 import boto3
@@ -91,15 +116,15 @@ def handle_s3_event(event, context):
         print(f"File Size: {file_size} bytes ({file_size_gb:.2f} GB)")
         
         # Determine processing type based on file size
-        # 5GB = 5 * 1024 * 1024 * 1024 = 5,368,709,120 bytes
-        size_threshold_bytes = 5 * 1024 * 1024 * 1024  # 5GB in bytes
+        # 2GB = 2 * 1024 * 1024 * 1024 = 2,147,483,648 bytes
+        size_threshold_bytes = 2 * 1024 * 1024 * 1024  # 2GB in bytes
         
         if file_size < size_threshold_bytes:
             trigger_type = 'Lambda'
-            print(f"File size ({file_size_gb:.2f} GB) < 5GB - Recommended processing: LAMBDA")
+            print(f"File size ({file_size_gb:.2f} GB) < 2GB - Recommended processing: LAMBDA")
         else:
             trigger_type = 'Glue'
-            print(f"File size ({file_size_gb:.2f} GB) >= 5GB - Recommended processing: GLUE")
+            print(f"File size ({file_size_gb:.2f} GB) >= 2GB - Recommended processing: GLUE")
         
         # Record file event in DynamoDB with determined processing type
         record_file_event(

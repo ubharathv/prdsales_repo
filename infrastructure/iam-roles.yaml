@@ -1,3 +1,25 @@
+#================================================================================
+# Script Name: iam-roles.yaml
+#================================================================================
+#
+# Process Overview:
+#   IAM Roles and Permissions CloudFormation template that defines all IAM roles 
+#   and policies required for the PrdSales data processing pipeline. 
+#   Includes roles for Lambda, Glue, Step Functions
+#   and S3 event notifications with proper permissions.
+#
+# Created By : DE Team
+# Environment: Configurable (dev/test/prod)
+#
+# Modification History:
+#    ID  Change Date Developer   JIRA/Request    Change Reason
+#    01  2026-03-05  Bharath U   JIRA-1234       Initial Version
+#
+#
+# Notes/Dependencies:
+#
+#================================================================================
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: IAM Roles for PrdSales Data Pipeline
 
