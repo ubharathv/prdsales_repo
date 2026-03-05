@@ -270,11 +270,16 @@ class SearchRevenueAnalyzer:
                 tsv_content = "Search Engine Domain\tSearch Keyword\tRevenue\n"
             else:
                 print('Creating TSV content from results')
+                
+                # Sort results by revenue in descending order (highest first)
+                sorted_results = sorted(results, key=lambda x: x['revenue'], reverse=True)
+                print(f'Sorted {len(sorted_results)} results by revenue (descending)')
+                
                 output = StringIO()
                 writer = csv.writer(output, delimiter='\t')
                 writer.writerow(['Search Engine Domain', 'Search Keyword', 'Revenue'])
                 
-                for result in results:
+                for result in sorted_results:
                     writer.writerow([
                         result['search_engine_domain'],
                         result['search_keyword'],
