@@ -180,9 +180,13 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:dev_get_${ProjectName}_file_lambda"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:dev_get_${ProjectName}_file_lambda:*"
                   - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:dev_gen_search_revenue_lambda"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:dev_gen_search_revenue_lambda:*"
                   - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:get_${ProjectName}_file_lambda"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:get_${ProjectName}_file_lambda:*"
                   - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:gen_search_revenue_lambda"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:gen_search_revenue_lambda:*"
         
         - PolicyName: GlueJobPolicy
           PolicyDocument:
