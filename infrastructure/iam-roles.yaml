@@ -74,6 +74,7 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:Scan
                 Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/prdssales_file_evnt"
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_file_evnt"
         
         - PolicyName: StepFunctionsAccessPolicy
