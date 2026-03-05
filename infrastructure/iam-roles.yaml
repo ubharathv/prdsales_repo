@@ -140,6 +140,8 @@ Resources:
                   - !Sub "arn:aws:s3:::${ProjectName}-s3-src-bucket/*"
                   - !Sub "arn:aws:s3:::${ProjectName}-s3-out-bucket"
                   - !Sub "arn:aws:s3:::${ProjectName}-s3-out-bucket/*"
+                  - !Sub "arn:aws:s3:::${ProjectName}-glue-scripts"
+                  - !Sub "arn:aws:s3:::${ProjectName}-glue-scripts/*"
         
         - PolicyName: LambdaInvokePolicy
           PolicyDocument:
