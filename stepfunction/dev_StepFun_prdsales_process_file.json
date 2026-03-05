@@ -17,8 +17,9 @@
       "Resource": "arn:aws:states:::glue:startJobRun.sync",
       "Arguments": {
         "JobName": "dev_prdsales_gen_search_rev_glue",
-        "Arguments": {
-          "--file_key.$": "$.file_key"
+        "Arguments": {          
+          "--file_key": "{% $states.input.file_key %}"
+
         }
       },
       "Next": "Lambda_process_end"
