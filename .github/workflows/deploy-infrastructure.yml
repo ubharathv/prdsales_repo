@@ -8,6 +8,7 @@ on:
       - 'git_repo/prdsales_repo/lambda/**'
       - 'git_repo/prdsales_repo/glue/**'
       - 'git_repo/prdsales_repo/stepfunction/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'git_repo/prdsales_repo/lambda/**'
       - 'git_repo/prdsales_repo/glue/**'
       - 'git_repo/prdsales_repo/stepfunction/**'
+      - '.github/workflows/**'
 
 env:
   AWS_REGION: us-east-2
