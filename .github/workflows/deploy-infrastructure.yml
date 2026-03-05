@@ -4,18 +4,18 @@ on:
   push:
     branches: [ main ]
     paths: 
-      - 'git_repo/prdsales_repo/infrastructure/**'
-      - 'git_repo/prdsales_repo/lambda/**'
-      - 'git_repo/prdsales_repo/glue/**'
-      - 'git_repo/prdsales_repo/stepfunction/**'
+      - 'infrastructure/**'
+      - 'lambda/**'
+      - 'glue/**'
+      - 'stepfunction/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'git_repo/prdsales_repo/infrastructure/**'
-      - 'git_repo/prdsales_repo/lambda/**'
-      - 'git_repo/prdsales_repo/glue/**'
-      - 'git_repo/prdsales_repo/stepfunction/**'
+      - 'infrastructure/**'
+      - 'lambda/**'
+      - 'glue/**'
+      - 'stepfunction/**'
       - '.github/workflows/**'
 
 env:
@@ -41,7 +41,7 @@ jobs:
     - name: Deploy IAM Roles
       run: |
         aws cloudformation deploy \
-          --template-file git_repo/prdsales_repo/infrastructure/iam-roles.yaml \
+          --template-file infrastructure/iam-roles.yaml \
           --stack-name prdsales-iam-roles-${{ env.ENVIRONMENT }} \
           --parameter-overrides \
             Environment=${{ env.ENVIRONMENT }} \
@@ -61,10 +61,10 @@ jobs:
         echo "Using Lambda Role ARN: $LAMBDA_ROLE_ARN"
         
         # Package and deploy dev_get_prdsales_file_lambda
-        cd git_repo/prdsales_repo/lambda
-        zip -r ../../../dev_get_prdsales_file_lambda.zip dev_get_prdsales_file_lambda.py
-        zip -r ../../../dev_gen_search_revenue_lambda.zip dev_gen_search_revenue_lambda.py
-        cd ../../..
+        cd lambda
+        zip -r ../dev_get_prdsales_file_lambda.zip dev_get_prdsales_file_lambda.py
+        zip -r ../dev_gen_search_revenue_lambda.zip dev_gen_search_revenue_lambda.py
+        cd ..
         
         # Deploy dev_get_prdsales_file_lambda
         aws lambda create-function \
@@ -107,7 +107,7 @@ jobs:
         echo "Using Glue Role ARN: $GLUE_ROLE_ARN"
         
         # Upload Glue script to existing S3 bucket
-        aws s3 cp git_repo/prdsales_repo/glue/dev_prdsales_gen_search_rev_glue.py \
+        aws s3 cp glue/dev_prdsales_gen_search_rev_glue.py \
           s3://${{ env.PROJECT_NAME }}-glue-scripts/scripts/ \
           --region ${{ env.AWS_REGION }}
         
@@ -140,7 +140,7 @@ jobs:
         echo "Using Account ID: $ACCOUNT_ID"
         
         # Create a temporary copy of the Step Function definition with updated ARNs
-        cp git_repo/prdsales_repo/stepfunction/dev_StepFun_prdsales_process_file.json temp_stepfunction.json
+        cp stepfunction/dev_StepFun_prdsales_process_file.json temp_stepfunction.json
         
         # Replace hardcoded account ID and region with current values
         sed -i "s/707859598422/$ACCOUNT_ID/g" temp_stepfunction.json
