@@ -87,6 +87,7 @@ Resources:
                   - states:DescribeExecution
                   - states:StopExecution
                 Resource:
+                  - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:dev_StepFun_${ProjectName}_process_file"
                   - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:StepFun_${ProjectName}_process_file"
         
         - PolicyName: LambdaInvokePolicy
