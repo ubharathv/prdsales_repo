@@ -152,18 +152,27 @@ jobs:
         
         echo "Updated Step Function definition with current account ARNs"
         
-        # Create or update Step Function with dev_ prefix
-        aws stepfunctions create-state-machine \
-          --name dev_StepFun_prdsales_process_file \
-          --definition file://temp_stepfunction.json \
-          --role-arn $SF_ROLE_ARN \
-          --region ${{ env.AWS_REGION }} \
-          --tags Key=Environment,Value=${{ env.ENVIRONMENT }} Key=Project,Value=${{ env.PROJECT_NAME }} \
-          || aws stepfunctions update-state-machine \
-             --state-machine-arn arn:aws:states:${{ env.AWS_REGION }}:$ACCOUNT_ID:stateMachine:dev_StepFun_prdsales_process_file \
-             --definition file://temp_stepfunction.json \
-             --role-arn $SF_ROLE_ARN \
-             --region ${{ env.AWS_REGION }}
+        # Check if Step Function already exists
+        STATE_MACHINE_ARN="arn:aws:states:${{ env.AWS_REGION }}:$ACCOUNT_ID:stateMachine:dev_StepFun_prdsales_process_file"
+        
+        if aws stepfunctions describe-state-machine --state-machine-arn $STATE_MACHINE_ARN >/dev/null 2>&1; then
+          echo "Step Function exists, updating..."
+          aws stepfunctions update-state-machine \
+            --state-machine-arn $STATE_MACHINE_ARN \
+            --definition file://temp_stepfunction.json \
+            --role-arn $SF_ROLE_ARN \
+            --region ${{ env.AWS_REGION }}
+          echo "Step Function updated successfully"
+        else
+          echo "Step Function does not exist, creating..."
+          aws stepfunctions create-state-machine \
+            --name dev_StepFun_prdsales_process_file \
+            --definition file://temp_stepfunction.json \
+            --role-arn $SF_ROLE_ARN \
+            --region ${{ env.AWS_REGION }} \
+            --tags Key=Environment,Value=${{ env.ENVIRONMENT }} Key=Project,Value=${{ env.PROJECT_NAME }}
+          echo "Step Function created successfully"
+        fi
         
         # Clean up temporary file
         rm temp_stepfunction.json
