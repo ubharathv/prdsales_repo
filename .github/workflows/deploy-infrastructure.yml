@@ -4,18 +4,18 @@ on:
   push:
     branches: [ main ]
     paths: 
-      - 'infrastructure/**'
-      - 'lambda/**'
-      - 'glue/**'
-      - 'stepfunction/**'
+      - 'git_repo/prdsales_repo/infrastructure/**'
+      - 'git_repo/prdsales_repo/lambda/**'
+      - 'git_repo/prdsales_repo/glue/**'
+      - 'git_repo/prdsales_repo/stepfunction/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'infrastructure/**'
-      - 'lambda/**'
-      - 'glue/**'
-      - 'stepfunction/**'
+      - 'git_repo/prdsales_repo/infrastructure/**'
+      - 'git_repo/prdsales_repo/lambda/**'
+      - 'git_repo/prdsales_repo/glue/**'
+      - 'git_repo/prdsales_repo/stepfunction/**'
       - '.github/workflows/**'
 
 env:
