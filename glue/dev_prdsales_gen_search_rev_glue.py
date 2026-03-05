@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-PrdSales Data Pipeline - Glue Job with Class Structure (Search Revenue Analysis)
+PrdSales Data Pipeline - Glue Job for Search Revenue Analysis
 ================================================================================
 
 Description:
-    Class-based AWS Glue PySpark job that processes large product sales files 
-    (>= 2GB) and generates search keyword performance analytics. Uses object-oriented
-    design with a main SearchRevenueProcessor class that encapsulates all processing logic.
+    AWS Glue PySpark job that processes large product sales files (>= 2GB) and
+    generates search keyword performance analytics. Reads CSV files from S3,
+    performs data transformations, and outputs tab-delimited results.
 
 First Created: 2026-03-05
 Author: Data Engineering Team
 Environment: Development
 
 Change Log:
-    2026-03-05 - Initial creation with class-based architecture
+    2026-03-05 - Initial creation with PySpark data processing logic
     [Add future changes here]
 
 Dependencies:
@@ -70,10 +70,101 @@ class SearchRevenueProcessor:
     
     def _register_udfs(self):
         """Register User Defined Functions for Spark processing."""
-        self.extract_domain_udf = udf(self.extract_domain, StringType())
-        self.extract_keyword_udf = udf(self.extract_search_keyword, StringType())
-        self.extract_revenue_udf = udf(self.extract_revenue, FloatType())
-        self.is_search_udf = udf(self.is_search_engine, BooleanType())
+        # Create static functions to avoid serialization issues
+        def extract_domain_static(url):
+            return SearchRevenueProcessor.extract_domain_static(url)
+        
+        def extract_keyword_static(referrer_url):
+            return SearchRevenueProcessor.extract_search_keyword_static(referrer_url)
+        
+        def extract_revenue_static(product_list):
+            return SearchRevenueProcessor.extract_revenue_static(product_list)
+        
+        def is_search_static(referrer_url):
+            return SearchRevenueProcessor.is_search_engine_static(referrer_url)
+        
+        self.extract_domain_udf = udf(extract_domain_static, StringType())
+        self.extract_keyword_udf = udf(extract_keyword_static, StringType())
+        self.extract_revenue_udf = udf(extract_revenue_static, FloatType())
+        self.is_search_udf = udf(is_search_static, BooleanType())
+    
+    @staticmethod
+    def extract_domain_static(url):
+        """Static method: Extract domain from URL."""
+        if not url:
+            return None
+        try:
+            parsed = urllib.parse.urlparse(url)
+            domain = parsed.netloc.lower()
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            return domain
+        except:
+            return None
+    
+    @staticmethod
+    def extract_search_keyword_static(referrer_url):
+        """Static method: Extract search keyword from referrer URL."""
+        if not referrer_url:
+            return None
+        try:
+            parsed = urllib.parse.urlparse(referrer_url)
+            query_params = urllib.parse.parse_qs(parsed.query)
+            
+            # Common search parameter names
+            search_params = ['q', 'query', 'p', 'search', 'keywords', 'k']
+            
+            for param in search_params:
+                if param in query_params and query_params[param]:
+                    keyword = query_params[param][0]
+                    keyword = urllib.parse.unquote_plus(keyword)
+                    return keyword.strip()
+        except:
+            pass
+        return None
+    
+    @staticmethod
+    def extract_revenue_static(product_list):
+        """Static method: Extract revenue from product_list field."""
+        if not product_list:
+            return 0.0
+        try:
+            parts = product_list.split(';')
+            if len(parts) >= 4:
+                price_str = parts[3].strip()
+                if price_str:
+                    return float(price_str)
+        except:
+            pass
+        return 0.0
+    
+    @staticmethod
+    def is_search_engine_static(referrer_url):
+        """Static method: Check if referrer is a search engine (external with search params)."""
+        if not referrer_url:
+            return False
+        
+        try:
+            parsed = urllib.parse.urlparse(referrer_url)
+            domain = parsed.netloc.lower()
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            
+            # Must be external domain (not our site)
+            if domain == 'esshopzilla.com':
+                return False
+            
+            # Must have search parameters
+            query_params = urllib.parse.parse_qs(parsed.query)
+            search_params = ['q', 'query', 'p', 'search', 'keywords', 'k']
+            
+            for param in search_params:
+                if param in query_params and query_params[param]:
+                    return True
+                    
+        except:
+            pass
+        return False
     
     def extract_domain(self, url):
         """Extract domain from URL."""
