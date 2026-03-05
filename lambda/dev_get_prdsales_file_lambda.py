@@ -311,8 +311,13 @@ def trigger_processing_job(bucket, key, trigger_type, file_size_gb):
         # Initialize Step Functions client
         stepfunctions_client = boto3.client('stepfunctions')
         
-        # Step Function ARN
-        state_machine_arn = 'arn:aws:states:us-east-2:707859598422:stateMachine:StepFun_prdsales_process_file'
+        # Get current account ID and region dynamically
+        sts_client = boto3.client('sts')
+        account_id = sts_client.get_caller_identity()['Account']
+        region = boto3.Session().region_name or 'us-east-2'
+        
+        # Step Function ARN (dynamic with dev_ prefix)
+        state_machine_arn = f'arn:aws:states:{region}:{account_id}:stateMachine:dev_StepFun_prdsales_process_file'
         
         # Prepare payload for Step Function with only required arguments
         payload = {
