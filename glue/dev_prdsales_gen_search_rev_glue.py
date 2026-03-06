@@ -103,7 +103,7 @@ class SearchRevenueProcessor:
     
     @staticmethod
     def extract_search_keyword_static(referrer_url):
-        """Static method: Extract search keyword from referrer URL."""
+        """Static method: Extract search keyword from referrer URL and normalize to lowercase."""
         if not referrer_url:
             return None
         try:
@@ -117,7 +117,8 @@ class SearchRevenueProcessor:
                 if param in query_params and query_params[param]:
                     keyword = query_params[param][0]
                     keyword = urllib.parse.unquote_plus(keyword)
-                    return keyword.strip()
+                    # Normalize keyword to lowercase for consistent aggregation
+                    return keyword.strip().lower()
         except:
             pass
         return None
@@ -186,7 +187,7 @@ class SearchRevenueProcessor:
             return None
     
     def extract_search_keyword(self, referrer_url):
-        """Extract search keyword from referrer URL."""
+        """Extract search keyword from referrer URL and normalize to lowercase."""
         if not referrer_url:
             return None
         try:
@@ -200,7 +201,8 @@ class SearchRevenueProcessor:
                 if param in query_params and query_params[param]:
                     keyword = query_params[param][0]
                     keyword = urllib.parse.unquote_plus(keyword)
-                    return keyword.strip()
+                    # Normalize keyword to lowercase for consistent aggregation
+                    return keyword.strip().lower()
         except:
             pass
         return None
@@ -337,26 +339,34 @@ class SearchRevenueProcessor:
     
     def create_final_results(self, search_sessions, purchase_sessions):
         """
-        Join search and purchase sessions to create final results.
+        Join search and purchase sessions to create final results with aggregated revenues.
         
         Args:
             search_sessions: DataFrame of search sessions
             purchase_sessions: DataFrame of purchase sessions
             
         Returns:
-            DataFrame: Final results DataFrame
+            DataFrame: Final results DataFrame with aggregated revenues
         """
         # Join search and purchase sessions
         results = search_sessions.join(purchase_sessions, on="ip", how="inner")
         
-        # Create final results (one row per purchase)
-        final_results = results.select(
+        # Create expanded results (one row per purchase)
+        expanded_results = results.select(
             col("search_domain").alias("Search Engine Domain"),
             col("search_keyword").alias("Search Keyword"),
             explode(col("purchase_amounts")).alias("Revenue")
         ).filter(
             col("Search Keyword").isNotNull() & 
             col("Search Engine Domain").isNotNull()
+        )
+        
+        # Aggregate revenues by domain+keyword combination
+        final_results = expanded_results.groupBy(
+            col("Search Engine Domain"),
+            col("Search Keyword")
+        ).agg(
+            spark_sum("Revenue").alias("Revenue")
         ).orderBy(col("Revenue").desc())
         
         return final_results

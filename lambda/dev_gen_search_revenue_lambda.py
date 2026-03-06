@@ -77,13 +77,13 @@ class SearchRevenueAnalyzer:
     
     def extract_search_keyword(self, referrer_url: str) -> Optional[str]:
         """
-        Extract search keyword from referrer URL.
+        Extract search keyword from referrer URL and normalize to lowercase.
         
         Args:
             referrer_url: Referrer URL to extract keyword from
             
         Returns:
-            Search keyword string or None if not found
+            Search keyword string (lowercase) or None if not found
         """
         if not referrer_url:
             return None
@@ -97,7 +97,8 @@ class SearchRevenueAnalyzer:
                 if param in query_params and query_params[param]:
                     keyword = query_params[param][0]
                     keyword = urllib.parse.unquote_plus(keyword)
-                    return keyword.strip()
+                    # Normalize keyword to lowercase for consistent aggregation
+                    return keyword.strip().lower()
         except:
             pass
         return None
@@ -113,30 +114,27 @@ class SearchRevenueAnalyzer:
         Returns:
             Revenue amount as float
         """
-        print('From extract_revenue')
         if not product_list:
             return 0.0
         try:
-            print('try block')
             parts = product_list.split(';')
-            print('parts: ',parts)
-            if len(parts) >= 3:
-                print('Frm if condition')
+            print('parts: ', parts)
+            if len(parts) >= 4:  # Need at least 4 parts for product;category;quantity;price
                 quantity_str = parts[2].strip()
-                print('quantity_str: ',quantity_str)
+                print('quantity_str: ', quantity_str)
                 price_str = parts[3].strip()
-                print('price_str: ',price_str)
+                print('price_str: ', price_str)
                 
                 if quantity_str and price_str:
-                    print('Frm if if condition')
                     quantity = int(quantity_str)
-                    print('quantity: ',quantity)
+                    print('quantity: ', quantity)
                     price = float(price_str)
-                    print('price: ',price)
+                    print('price: ', price)
                     revenue = quantity * price
-                    print('revenue: ',revenue)
+                    print('revenue: ', revenue)
                     return revenue
-        except:
+        except Exception as e:
+            print(f"Error extracting revenue: {e}")
             pass
         return 0.0
     
@@ -246,20 +244,36 @@ class SearchRevenueAnalyzer:
             if processed_count % 50000 == 0:
                 print(f"Processed {processed_count:,} records...")
         
-        # Generate results from sessions
+        # Generate results from sessions and aggregate by domain+keyword
+        domain_keyword_revenue = {}
+        
         for ip, session in user_sessions.items():
             if (session['search_domain'] and 
                 session['search_keyword'] and 
                 session['purchases']):
                 
-                for revenue in session['purchases']:
-                    results.append({
-                        'search_engine_domain': session['search_domain'],
-                        'search_keyword': session['search_keyword'],
-                        'revenue': revenue
-                    })
+                # Create key for aggregation (domain + keyword combination)
+                key = (session['search_domain'], session['search_keyword'])
+                
+                # Sum all revenues for this session
+                total_session_revenue = sum(session['purchases'])
+                
+                # Add to aggregated results
+                if key in domain_keyword_revenue:
+                    domain_keyword_revenue[key] += total_session_revenue
+                else:
+                    domain_keyword_revenue[key] = total_session_revenue
         
-        print(f"Generated {len(results)} final results")
+        # Convert aggregated results to list format
+        results = []
+        for (domain, keyword), revenue in domain_keyword_revenue.items():
+            results.append({
+                'search_engine_domain': domain,
+                'search_keyword': keyword,
+                'revenue': revenue
+            })
+        
+        print(f"Generated {len(results)} aggregated results")
         return results
     
     def save_results_to_s3(self, results: List[Dict], output_bucket: str, output_key: str) -> str:
@@ -317,7 +331,7 @@ class SearchRevenueAnalyzer:
                     ContentType='text/tab-separated-values'
                 )
                 print('S3 upload successful!')
-                print('S3 put_object response:', response)
+                #print('S3 put_object response:', response)
                 
             except Exception as s3_error:
                 print(f"S3 upload failed: {s3_error}")
