@@ -113,18 +113,28 @@ class SearchRevenueAnalyzer:
         Returns:
             Revenue amount as float
         """
+        print('From extract_revenue')
         if not product_list:
             return 0.0
         try:
+            print('try block')
             parts = product_list.split(';')
+            print('parts: ',parts)
             if len(parts) >= 3:
-                quantity_str = parts[1].strip()
-                price_str = parts[2].strip()
+                print('Frm if condition')
+                quantity_str = parts[2].strip()
+                print('quantity_str: ',quantity_str)
+                price_str = parts[3].strip()
+                print('price_str: ',price_str)
                 
                 if quantity_str and price_str:
+                    print('Frm if if condition')
                     quantity = int(quantity_str)
+                    print('quantity: ',quantity)
                     price = float(price_str)
+                    print('price: ',price)
                     revenue = quantity * price
+                    print('revenue: ',revenue)
                     return revenue
         except:
             pass

@@ -132,11 +132,11 @@ class SearchRevenueProcessor:
         try:
             parts = product_list.split(';')
             if len(parts) >= 3:
-                quantity_str = parts[1].strip()
-                price_str = parts[2].strip()
+                quantity_str = parts[2].strip()
+                price_str = parts[3].strip()
                 
                 if quantity_str and price_str:
-                    quantity = float(quantity_str)
+                    quantity = int(quantity_str)
                     price = float(price_str)
                     revenue = quantity * price
                     return revenue
