@@ -105,6 +105,7 @@ class SearchRevenueAnalyzer:
     def extract_revenue(self, product_list: str) -> float:
         """
         Extract revenue from product_list field.
+        Format: product;quantity;price
         
         Args:
             product_list: Product list string containing revenue data
@@ -116,10 +117,15 @@ class SearchRevenueAnalyzer:
             return 0.0
         try:
             parts = product_list.split(';')
-            if len(parts) >= 4:
-                price_str = parts[3].strip()
-                if price_str:
-                    return float(price_str)
+            if len(parts) >= 3:
+                quantity_str = parts[1].strip()
+                price_str = parts[2].strip()
+                
+                if quantity_str and price_str:
+                    quantity = int(quantity_str)
+                    price = float(price_str)
+                    revenue = quantity * price
+                    return revenue
         except:
             pass
         return 0.0
