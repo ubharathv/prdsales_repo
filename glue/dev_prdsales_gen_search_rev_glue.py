@@ -264,7 +264,7 @@ class SearchRevenueProcessor:
             .csv(input_path)
         
         record_count = df.count()
-        print(f"Loaded {record_count:,} records")
+        print(f"Records read: {record_count:,}")
         return df
     
     def enrich_data(self, df):
@@ -443,22 +443,22 @@ class SearchRevenueProcessor:
         Args:
             final_results: Final results DataFrame
         """
-        print("\nSample Results:")
-        print("-" * 50)
-        final_results.show(20, truncate=False)
+        #print("\nSample Results:")
+        #print("-" * 50)
+        #final_results.show(20, truncate=False)
         
         total_records = final_results.count()
-        print(f"\nProcessing Summary:")
-        print(f"Total Records: {total_records:,}")
         
         if total_records > 0:
-            total_revenue = final_results.agg(spark_sum("Revenue")).collect()[0][0]
-            unique_domains = final_results.select("Search Engine Domain").distinct().count()
-            unique_keywords = final_results.select("Search Keyword").distinct().count()
+            #total_revenue = final_results.agg(spark_sum("Revenue")).collect()[0][0]
+            #unique_domains = final_results.select("Search Engine Domain").distinct().count()
+            #unique_keywords = final_results.select("Search Keyword").distinct().count()
             
-            print(f"Total Revenue: ${total_revenue:,.2f}")
-            print(f"Unique Search Domains: {unique_domains}")
-            print(f"Unique Keywords: {unique_keywords}")
+            #print(f"Total Revenue: ${total_revenue:,.2f}")
+            #print(f"Unique Search Domains: {unique_domains}")
+            #print(f"Unique Keywords: {unique_keywords}")
+            print(f"\nProcessing Summary:")
+            print(f"Total Records: {total_records:,}")
         else:
             print("No matching records found.")
     
@@ -499,7 +499,7 @@ class SearchRevenueProcessor:
             
             # Invoke Lambda function
             response = lambda_client.invoke(
-                FunctionName='get_prdsales_file_lambda',
+                FunctionName='dev_get_prdsales_file_lambda',
                 InvocationType='Event',
                 Payload=json.dumps(payload)
             )
@@ -622,8 +622,8 @@ def main():
     job = Job(glue_context)
     
     try:
-        print("=== GLUE JOB INPUT DEBUG ===")
-        print(f"sys.argv: {sys.argv}")
+        #print("=== GLUE JOB INPUT DEBUG ===")
+        #print(f"sys.argv: {sys.argv}")
         
         # Get job parameters - file_key is required
         args = getResolvedOptions(sys.argv, ['file_key'])

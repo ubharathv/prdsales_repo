@@ -50,7 +50,6 @@ def lambda_handler(event, context):
         "event_type": "LAMBDA|GLUE|S3",
         "file_date": "2026-03-03" (optional),
         "record_count": 150000 (optional),
-        "output_location": "s3://bucket/path/file.tab" (optional),
         "error_message": "Error details" (optional for FAILED status)
     }
     """
@@ -377,7 +376,7 @@ def trigger_processing_job(bucket, key, trigger_type, file_size_gb):
         import traceback
         traceback.print_exc()
         
-        # Return error info but don't raise - this shouldn't fail the main Lambda
+        # Return error
         return {
             'error': str(e),
             'status': 'FAILED'

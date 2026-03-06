@@ -447,7 +447,7 @@ class SearchRevenueAnalyzer:
                 'content_type': 'text/csv',
                 'event_type': 'Lambda',
                 'file_datetime': datetime.utcnow().isoformat() + 'Z',
-                'file_size_gb': '',  # Leave empty as requested
+                'file_size_gb': '',
                 'file_status': status
             }
             
